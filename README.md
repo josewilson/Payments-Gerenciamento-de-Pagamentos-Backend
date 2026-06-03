@@ -1,6 +1,22 @@
-# Payments API
+<h1 align="center">Payments API</h1>
 
-API REST desenvolvida em Java com Spring Boot para gerenciamento de pagamentos, com persistência em PostgreSQL, auditoria em MongoDB, integração com API externa de cotação e documentação com Swagger/OpenAPI.
+<p align="center">
+  API REST desenvolvida em Java com Spring Boot para gerenciamento de pagamentos, com persistência em PostgreSQL,
+  auditoria em MongoDB, integração com API externa de cotação e documentação com Swagger/OpenAPI.
+</p>
+
+<p align="center">
+  <img alt="Java" src="https://img.shields.io/badge/Java%2021-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white">
+  <img alt="Spring Boot" src="https://img.shields.io/badge/Spring%20Boot-6DB33F?style=for-the-badge&logo=springboot&logoColor=white">
+  <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white">
+  <img alt="MongoDB" src="https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white">
+  <img alt="Maven" src="https://img.shields.io/badge/Maven-C71A36?style=for-the-badge&logo=apachemaven&logoColor=white">
+  <img alt="Swagger" src="https://img.shields.io/badge/Swagger-85EA2D?style=for-the-badge&logo=swagger&logoColor=black">
+  <img alt="JUnit 5" src="https://img.shields.io/badge/JUnit%205-25A162?style=for-the-badge&logo=junit5&logoColor=white">
+  <img alt="Postman" src="https://img.shields.io/badge/Postman-FF6C37?style=for-the-badge&logo=postman&logoColor=white">
+</p>
+
+---
 
 ## Objetivo do projeto
 
@@ -19,18 +35,20 @@ A API permite:
 
 ## Tecnologias utilizadas
 
-- Java 21
-- Spring Boot
-- Spring Web
-- Spring Data JPA
-- PostgreSQL
-- MongoDB
-- Maven
-- Lombok
-- Swagger / OpenAPI
-- JUnit 5
-- Mockito
-- Postman
+<p>
+  <img alt="Java" src="https://img.shields.io/badge/Java%2021-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white">
+  <img alt="Spring Boot" src="https://img.shields.io/badge/Spring%20Boot-6DB33F?style=for-the-badge&logo=springboot&logoColor=white">
+  <img alt="Spring Web" src="https://img.shields.io/badge/Spring%20Web-6DB33F?style=for-the-badge&logo=spring&logoColor=white">
+  <img alt="Spring Data JPA" src="https://img.shields.io/badge/Spring%20Data%20JPA-6DB33F?style=for-the-badge&logo=spring&logoColor=white">
+  <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white">
+  <img alt="MongoDB" src="https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white">
+  <img alt="Maven" src="https://img.shields.io/badge/Maven-C71A36?style=for-the-badge&logo=apachemaven&logoColor=white">
+  <img alt="Lombok" src="https://img.shields.io/badge/Lombok-BC4521?style=for-the-badge&logo=lombok&logoColor=white">
+  <img alt="Swagger" src="https://img.shields.io/badge/Swagger%20%2F%20OpenAPI-85EA2D?style=for-the-badge&logo=swagger&logoColor=black">
+  <img alt="JUnit 5" src="https://img.shields.io/badge/JUnit%205-25A162?style=for-the-badge&logo=junit5&logoColor=white">
+  <img alt="Mockito" src="https://img.shields.io/badge/Mockito-25A162?style=for-the-badge&logo=java&logoColor=white">
+  <img alt="Postman" src="https://img.shields.io/badge/Postman-FF6C37?style=for-the-badge&logo=postman&logoColor=white">
+</p>
 
 ---
 
@@ -343,4 +361,6 @@ mvn test
 
 ## Autor
 
-Desenvolvido por José Wilson para fins de estudo, prática em back-end Java e portfólio profissional.
+<p align="center">
+  Desenvolvido por <strong>José Wilson Alves de Souza</strong> para fins de estudo, prática em back-end Java e portfólio profissional.
+</p>
