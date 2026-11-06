@@ -24,10 +24,6 @@ public class ExchangeRateClient {
     @Retry(name = "exchangeRate")
     @CircuitBreaker(name = "exchangeRate", fallbackMethod = "circuitOpen")
     public BigDecimal getBrlExchangeRate(String currency) {
-        if ("BRL".equalsIgnoreCase(currency)) {
-            return BigDecimal.ONE;
-        }
-
         ExchangeRateResponse response;
         try {
             response = restClient.get()

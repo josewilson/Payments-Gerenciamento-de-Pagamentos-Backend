@@ -21,9 +21,10 @@ spring:
     caffeine:
       spec: expireAfterWrite=10m,maximumSize=200
 
+  mongodb:
+    uri: ${MONGO_URI:mongodb://localhost:27017/payments_audit_db}
+
   data:
-    mongodb:
-      uri: ${MONGO_URI:mongodb://localhost:27017/payments_audit_db}
     web:
       pageable:
         max-page-size: 100

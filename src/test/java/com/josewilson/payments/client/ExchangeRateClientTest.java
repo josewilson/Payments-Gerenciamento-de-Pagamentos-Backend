@@ -37,12 +37,6 @@ class ExchangeRateClientTest {
     }
 
     @Test
-    void brlDoesNotCallApi() {
-        assertEquals(BigDecimal.ONE, clientWith(Duration.ofSeconds(10)).getBrlExchangeRate("BRL"));
-        assertEquals(0, wm.getAllServeEvents().size());
-    }
-
-    @Test
     void serverErrorBecomesCotacaoIndisponivel() {
         wm.stubFor(get("/latest/USD").willReturn(serverError()));
 

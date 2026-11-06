@@ -77,8 +77,13 @@ public class PaymentService {
         return toResponse(savedPayment);
     }
 
+    // BRL não passa pelo cliente externo (cache/retry/circuit breaker): o circuito aberto não pode derrubar pagamentos em BRL.
+    private BigDecimal rateFor(String currency) {
+        return "BRL".equalsIgnoreCase(currency) ? BigDecimal.ONE : exchangeRateClient.getBrlExchangeRate(currency);
+    }
+
     private PaymentResponseDTO toResponse(Payment payment) {
-        return paymentMapper.toResponseDTO(payment, exchangeRateClient.getBrlExchangeRate(payment.getCurrency()));
+        return paymentMapper.toResponseDTO(payment, rateFor(payment.getCurrency()));
     }
 
     public Page<PaymentResponseDTO> findPayments(PaymentStatus status, Pageable pageable) {
@@ -91,7 +96,7 @@ public class PaymentService {
         }
 
         return paymentsPage.map(payment -> {
-            BigDecimal exchangeRate = exchangeRateClient.getBrlExchangeRate(payment.getCurrency());
+            BigDecimal exchangeRate = rateFor(payment.getCurrency());
             return paymentMapper.toResponseDTO(payment, exchangeRate);
         });
     }
@@ -100,7 +105,7 @@ public class PaymentService {
         Payment payment = paymentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Pagamento não encontrado com o id: " + id));
 
-        BigDecimal exchangeRate = exchangeRateClient.getBrlExchangeRate(payment.getCurrency());
+        BigDecimal exchangeRate = rateFor(payment.getCurrency());
 
         return paymentMapper.toResponseDTO(payment, exchangeRate);
     }
@@ -124,7 +129,7 @@ public class PaymentService {
                 "Status alterado para " + updatedPayment.getStatus()
         );
 
-        BigDecimal exchangeRate = exchangeRateClient.getBrlExchangeRate(updatedPayment.getCurrency());
+        BigDecimal exchangeRate = rateFor(updatedPayment.getCurrency());
 
         return paymentMapper.toResponseDTO(updatedPayment, exchangeRate);
     }
