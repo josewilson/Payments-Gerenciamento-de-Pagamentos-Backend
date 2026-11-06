@@ -8,6 +8,7 @@ import com.josewilson.payments.domain.PaymentStatus;
 import com.josewilson.payments.dto.PaymentRequestDTO;
 import com.josewilson.payments.dto.PaymentResponseDTO;
 import com.josewilson.payments.dto.PaymentStatusUpdateDTO;
+import com.josewilson.payments.exception.InvalidStatusTransitionException;
 import com.josewilson.payments.exception.ResourceNotFoundException;
 import com.josewilson.payments.mapper.PaymentMapper;
 import com.josewilson.payments.repository.PaymentAuditRepository;
@@ -107,6 +108,10 @@ public class PaymentService {
     public PaymentResponseDTO updatePaymentStatus(Long id, PaymentStatusUpdateDTO request) {
         Payment payment = paymentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Pagamento não encontrado com o id: " + id));
+
+        if (!payment.getStatus().canTransitionTo(request.getStatus())) {
+            throw new InvalidStatusTransitionException(payment.getStatus(), request.getStatus());
+        }
 
         payment.setStatus(request.getStatus());
         payment.setUpdatedAt(LocalDateTime.now());
