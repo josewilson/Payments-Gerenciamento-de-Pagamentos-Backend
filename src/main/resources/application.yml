@@ -36,3 +36,21 @@ exchange-rate:
   base-url: ${EXCHANGE_RATE_URL:https://open.er-api.com/v6}
   connect-timeout: 2s
   read-timeout: 3s
+
+resilience4j:
+  retry:
+    instances:
+      exchangeRate:
+        max-attempts: 3
+        wait-duration: 200ms
+        retry-exceptions:
+          - com.josewilson.payments.exception.CotacaoIndisponivelException
+  circuitbreaker:
+    instances:
+      exchangeRate:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        record-exceptions:
+          - com.josewilson.payments.exception.CotacaoIndisponivelException
