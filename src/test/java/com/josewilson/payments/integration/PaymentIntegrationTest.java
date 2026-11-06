@@ -3,6 +3,11 @@ package com.josewilson.payments.integration;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import com.jayway.jsonpath.JsonPath;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.JWSHeader;
+import com.nimbusds.jose.crypto.MACSigner;
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +18,10 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.mongodb.MongoDBContainer;
@@ -33,6 +42,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Testcontainers
 class PaymentIntegrationTest {
 
+    static final String SECRET = "integration-test-secret-with-at-least-32-bytes";
+
     @Container
     static PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:16");
     @Container
@@ -44,6 +55,7 @@ class PaymentIntegrationTest {
 
     @DynamicPropertySource
     static void props(DynamicPropertyRegistry r) {
+        r.add("security.jwt.secret", () -> SECRET);
         r.add("spring.datasource.url", postgres::getJdbcUrl);
         r.add("spring.datasource.username", postgres::getUsername);
         r.add("spring.datasource.password", postgres::getPassword);
@@ -56,6 +68,18 @@ class PaymentIntegrationTest {
     @Autowired
     MockMvc mvc;
 
+    private ResultActions perform(MockHttpServletRequestBuilder request) throws Exception {
+        return mvc.perform(request.header("Authorization", "Bearer " + token(SECRET)));
+    }
+
+    private static String token(String secret) throws Exception {
+        var claims = new JWTClaimsSet.Builder().subject("it")
+                .expirationTime(new Date(System.currentTimeMillis() + 3_600_000)).build();
+        var jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.HS256), claims);
+        jwt.sign(new MACSigner(secret.getBytes(StandardCharsets.UTF_8)));
+        return jwt.serialize();
+    }
+
     private static String body(String currency) {
         return """
                 {"customerName":"Ana","customerEmail":"ana@email.com","amount":150.50,
@@ -63,7 +87,7 @@ class PaymentIntegrationTest {
     }
 
     private MvcResult create(String key, String currency) throws Exception {
-        return mvc.perform(post("/api/payments").header("Idempotency-Key", key)
+        return perform(post("/api/payments").header("Idempotency-Key", key)
                 .contentType(MediaType.APPLICATION_JSON).content(body(currency))).andReturn();
     }
 
@@ -86,15 +110,15 @@ class PaymentIntegrationTest {
     void statusFlowWithAuditAndConflict() throws Exception {
         Integer id = JsonPath.read(create("it-flow-1", "BRL").getResponse().getContentAsString(), "$.id");
 
-        mvc.perform(patch("/api/payments/{id}/status", id).contentType(MediaType.APPLICATION_JSON)
+        perform(patch("/api/payments/{id}/status", id).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"status\":\"APPROVED\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("APPROVED"));
 
-        mvc.perform(patch("/api/payments/{id}/status", id).contentType(MediaType.APPLICATION_JSON)
+        perform(patch("/api/payments/{id}/status", id).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"status\":\"CANCELLED\"}"))
                 .andExpect(status().isConflict());
 
-        mvc.perform(get("/api/payments/{id}/audit", id))
+        perform(get("/api/payments/{id}/audit", id))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].action").value("CREATED"))
@@ -103,9 +127,9 @@ class PaymentIntegrationTest {
 
     @Test
     void missingIdempotencyKeyIs400AndUnknownPaymentIs404() throws Exception {
-        mvc.perform(post("/api/payments").contentType(MediaType.APPLICATION_JSON).content(body("BRL")))
+        perform(post("/api/payments").contentType(MediaType.APPLICATION_JSON).content(body("BRL")))
                 .andExpect(status().isBadRequest());
-        mvc.perform(get("/api/payments/{id}", 999999)).andExpect(status().isNotFound());
+        perform(get("/api/payments/{id}", 999999)).andExpect(status().isNotFound());
     }
 
     @Test
@@ -119,7 +143,21 @@ class PaymentIntegrationTest {
         assertEquals(201, up.getResponse().getStatus());
 
         // só um pagamento foi criado para a chave
-        mvc.perform(get("/api/payments?size=100")).andExpect(status().isOk())
+        perform(get("/api/payments?size=100")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[?(@.currency=='GBP')]", hasSize(1)));
+    }
+
+    @Test
+    void rejectsMissingGarbageAndForgedTokens() throws Exception {
+        mvc.perform(get("/api/payments")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/payments").header("Authorization", "Bearer lixo")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/payments").header("Authorization",
+                        "Bearer " + token("outro-segredo-qualquer-com-32-bytes-ou-mais")))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void apiDocsIsPublic() throws Exception {
+        mvc.perform(get("/v3/api-docs")).andExpect(status().isOk());
     }
 }

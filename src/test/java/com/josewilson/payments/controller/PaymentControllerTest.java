@@ -6,7 +6,10 @@ import com.josewilson.payments.domain.PaymentStatus;
 import com.josewilson.payments.dto.PaymentRequestDTO;
 import com.josewilson.payments.dto.PaymentResponseDTO;
 import com.josewilson.payments.service.PaymentService;
+import com.josewilson.payments.config.SecurityConfig;
 import org.junit.jupiter.api.DisplayName;
+import org.springframework.context.annotation.Import;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -17,12 +20,15 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.math.BigDecimal;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(PaymentController.class)
+@Import(SecurityConfig.class)
 class PaymentControllerTest {
 
     @Autowired
@@ -30,6 +36,9 @@ class PaymentControllerTest {
 
     @MockitoBean
     private PaymentService paymentService;
+
+    @MockitoBean
+    private JwtDecoder jwtDecoder;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -57,6 +66,7 @@ class PaymentControllerTest {
         when(paymentService.createPayment(eq("key-1"), any(PaymentRequestDTO.class))).thenReturn(response);
 
         mockMvc.perform(post("/api/payments")
+                        .with(jwt())
                         .header("Idempotency-Key", "key-1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -77,8 +87,16 @@ class PaymentControllerTest {
         request.setCurrency("BRL");
 
         mockMvc.perform(post("/api/payments")
+                        .with(jwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Deve responder 401 sem token")
+    void shouldReturn401WithoutToken() throws Exception {
+        mockMvc.perform(get("/api/payments"))
+                .andExpect(status().isUnauthorized());
     }
 }
