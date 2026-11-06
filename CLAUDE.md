@@ -35,3 +35,5 @@ Swagger: `http://localhost:8080/swagger-ui/index.html` · Health: `/actuator/hea
 - Slice `@WebMvcTest` com segurança: `@Import(SecurityConfig.class)` + `@MockitoBean JwtDecoder` + `jwt()` nas requisições.
 - Testes de integração se chamam `*Test` (surefire não executa `*IT`) e exigem Docker.
 - `ExchangeRateClient` fica sob cache → retry → circuit breaker; o atalho BRL fica no `PaymentService`, fora do circuito.
+- Métricas: `/actuator/prometheus` exige JWT. Não nomeie contador terminando em `.created` (sufixo reservado do Prometheus: o contador some). Binders do Resilience4j são registrados à mão em `MetricsConfig`.
+- Regras de arquitetura em `ArchitectureTest`: camada nova ou dependência fora do padrão quebra o build.

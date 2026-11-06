@@ -167,4 +167,18 @@ class PaymentIntegrationTest {
                 .andExpect(jsonPath("$.status").value("UP"));
         mvc.perform(get("/actuator/health/liveness")).andExpect(status().isOk());
     }
+
+    @Test
+    void exposesBusinessAndResilienceMetricsToAuthenticatedScrapers() throws Exception {
+        fx.stubFor(WireMock.get("/latest/CAD").willReturn(okJson("{\"rates\":{\"BRL\":4.0}}")));
+        create("it-metrics-1", "CAD");
+
+        mvc.perform(get("/actuator/prometheus")).andExpect(status().isUnauthorized());
+
+        String body = perform(get("/actuator/prometheus")).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        org.junit.jupiter.api.Assertions.assertTrue(body.contains("payments_creations_total"), body);
+        org.junit.jupiter.api.Assertions.assertTrue(body.contains("application=\"payments\""), body);
+        org.junit.jupiter.api.Assertions.assertTrue(body.contains("resilience4j_circuitbreaker_state"), body);
+    }
 }

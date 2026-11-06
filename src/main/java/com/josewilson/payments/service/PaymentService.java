@@ -13,6 +13,7 @@ import com.josewilson.payments.exception.ResourceNotFoundException;
 import com.josewilson.payments.mapper.PaymentMapper;
 import com.josewilson.payments.repository.PaymentAuditRepository;
 import com.josewilson.payments.repository.PaymentRepository;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -29,17 +30,20 @@ public class PaymentService {
     private final PaymentAuditRepository paymentAuditRepository;
     private final PaymentMapper paymentMapper;
     private final ExchangeRateClient exchangeRateClient;
+    private final MeterRegistry meterRegistry;
 
     public PaymentService(
             PaymentRepository paymentRepository,
             PaymentAuditRepository paymentAuditRepository,
             PaymentMapper paymentMapper,
-            ExchangeRateClient exchangeRateClient
+            ExchangeRateClient exchangeRateClient,
+            MeterRegistry meterRegistry
     ) {
         this.paymentRepository = paymentRepository;
         this.paymentAuditRepository = paymentAuditRepository;
         this.paymentMapper = paymentMapper;
         this.exchangeRateClient = exchangeRateClient;
+        this.meterRegistry = meterRegistry;
     }
 
     public PaymentResponseDTO createPayment(String idempotencyKey, PaymentRequestDTO request) {
@@ -73,6 +77,7 @@ public class PaymentService {
         }
 
         saveAudit(savedPayment.getId(), "CREATED", "Pagamento criado com status PENDING.");
+        meterRegistry.counter("payments.creations").increment();
 
         return toResponse(savedPayment);
     }
@@ -128,6 +133,8 @@ public class PaymentService {
                 "STATUS_UPDATED",
                 "Status alterado para " + updatedPayment.getStatus()
         );
+
+        meterRegistry.counter("payments.status.changed", "status", updatedPayment.getStatus().name()).increment();
 
         BigDecimal exchangeRate = rateFor(updatedPayment.getCurrency());
 

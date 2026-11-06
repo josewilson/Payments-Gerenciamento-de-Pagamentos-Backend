@@ -10,6 +10,7 @@ import com.josewilson.payments.exception.ResourceNotFoundException;
 import com.josewilson.payments.mapper.PaymentMapper;
 import com.josewilson.payments.repository.PaymentAuditRepository;
 import com.josewilson.payments.repository.PaymentRepository;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,11 +38,12 @@ class PaymentStatusFlowTest {
     @Mock
     ExchangeRateClient exchangeRateClient;
 
+    SimpleMeterRegistry registry = new SimpleMeterRegistry();
     PaymentService service;
 
     @BeforeEach
     void setUp() {
-        service = new PaymentService(paymentRepository, paymentAuditRepository, new PaymentMapper(), exchangeRateClient);
+        service = new PaymentService(paymentRepository, paymentAuditRepository, new PaymentMapper(), exchangeRateClient, registry);
     }
 
     private Payment payment(PaymentStatus status) {
@@ -70,6 +72,7 @@ class PaymentStatusFlowTest {
         assertEquals(1L, audit.getValue().getPaymentId());
         assertEquals("STATUS_UPDATED", audit.getValue().getAction());
         assertTrue(audit.getValue().getDetails().contains(target.name()));
+        assertEquals(1.0, registry.counter("payments.status.changed", "status", target.name()).count());
     }
 
     @ParameterizedTest

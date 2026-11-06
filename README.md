@@ -49,6 +49,7 @@ Gerencia o ciclo de vida de pagamentos: criação, consulta paginada com filtro 
 | **Dados** | Valores em `BigDecimal`, migrações Flyway e auditoria separada no MongoDB |
 | **Segurança** | JWT (HS256) em `/api/payments/**`, sem segredos no repositório |
 | **Operação** | Docker Compose, health com probes, shutdown gracioso e CI |
+| **Observabilidade** | Métricas Prometheus (negócio, circuit breaker, retry, JVM e HTTP) |
 
 ## Início rápido
 
@@ -64,6 +65,7 @@ docker compose up -d --build
 | API | http://localhost:8080 |
 | Swagger UI | http://localhost:8080/swagger-ui/index.html |
 | Health | http://localhost:8080/actuator/health |
+| Métricas (exige JWT) | http://localhost:8080/actuator/prometheus |
 
 Para rodar pela IDE ou com `./mvnw spring-boot:run`, suba apenas os bancos (`docker compose up -d postgres mongo`) e exporte as variáveis do `.env`.
 
@@ -97,7 +99,7 @@ export TOKEN="$H.$P.$S"
 
 </details>
 
-Rotas públicas: `/actuator/health/**`, `/actuator/info`, `/swagger-ui/**` e `/v3/api-docs/**`.
+Rotas públicas: `/actuator/health/**`, `/actuator/info`, `/swagger-ui/**` e `/v3/api-docs/**`. Os demais endpoints do Actuator (`metrics`, `prometheus`) exigem token.
 
 ## API
 
@@ -268,12 +270,13 @@ erDiagram
 │   │   │   ├── dto/                # PaymentRequestDTO, PaymentResponseDTO, PaymentStatusUpdateDTO
 │   │   │   ├── mapper/             # PaymentMapper
 │   │   │   ├── client/             # ExchangeRateClient, ExchangeRateResponse
-│   │   │   ├── config/             # Security, Jwt, Cache, RestClient, OpenApi, Web
+│   │   │   ├── config/             # Security, Jwt, Cache, Metrics, RestClient, OpenApi, Web
 │   │   │   └── exception/          # exceções de domínio e GlobalExceptionHandler
 │   │   └── resources/
 │   │       ├── application.yml
 │   │       └── db/migration/       # V1__payment, V2__idempotency_key, V3__payment_version
 │   └── test/java/com/josewilson/payments/
+│       ├── architecture/           # ArchitectureTest (ArchUnit)
 │       ├── client/                 # ExchangeRateClientTest (WireMock)
 │       ├── config/                 # CotacaoCacheTest, CotacaoResilienceTest
 │       ├── controller/             # PaymentControllerTest (MockMvc)
@@ -314,6 +317,7 @@ Especificações detalhadas em [`specs/`](specs/README.md).
 | Cliente de câmbio | WireMock: sucesso, 5xx, resposta sem BRL, timeout, cache, retry e circuit breaker |
 | Controller | MockMvc com segurança (401 sem token, validação do header) |
 | Integração | Spring Boot completo com PostgreSQL e MongoDB reais (Testcontainers) |
+| Arquitetura | ArchUnit: camadas, independência do domínio, sem ciclos, injeção por construtor |
 
 O workflow [`ci.yml`](.github/workflows/ci.yml) executa `./mvnw verify` a cada push e pull request.
 
@@ -330,8 +334,7 @@ Checklist de implantação:
 ## Próximos passos
 
 - Publicar `PagamentoStatusAlterado` em fila (quando houver mensageria no ecossistema)
-- Métricas e tracing (Micrometer/OpenTelemetry) e logs estruturados
-- Testes de arquitetura (ArchUnit)
+- Tracing distribuído (OpenTelemetry) e logs estruturados
 
 ## Autor
 
