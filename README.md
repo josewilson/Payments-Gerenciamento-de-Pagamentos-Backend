@@ -2,7 +2,8 @@
 
 <p align="center">
   API REST de pagamentos em Java 21 e Spring Boot 4, com PostgreSQL, auditoria em MongoDB,<br>
-  cotação de câmbio via API externa, autenticação JWT e documentação OpenAPI.
+  eventos no RabbitMQ (outbox), métricas Prometheus,
+  cotação de câmbio resiliente, autenticação JWT e documentação OpenAPI.
 </p>
 
 <p align="center">
@@ -14,6 +15,8 @@
   <img alt="Spring Boot" src="https://img.shields.io/badge/Spring%20Boot%204-6DB33F?style=for-the-badge&logo=springboot&logoColor=white">
   <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL%2016-4169E1?style=for-the-badge&logo=postgresql&logoColor=white">
   <img alt="MongoDB" src="https://img.shields.io/badge/MongoDB%207-47A248?style=for-the-badge&logo=mongodb&logoColor=white">
+  <img alt="RabbitMQ" src="https://img.shields.io/badge/RabbitMQ-FF6600?style=for-the-badge&logo=rabbitmq&logoColor=white">
+  <img alt="Prometheus" src="https://img.shields.io/badge/Prometheus-E6522C?style=for-the-badge&logo=prometheus&logoColor=white">
   <img alt="Flyway" src="https://img.shields.io/badge/Flyway-CC0200?style=for-the-badge&logo=flyway&logoColor=white">
   <img alt="Docker" src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white">
   <img alt="Maven" src="https://img.shields.io/badge/Maven-C71A36?style=for-the-badge&logo=apachemaven&logoColor=white">
@@ -34,6 +37,7 @@
 - [Regras de negócio](#regras-de-negócio)
 - [Estrutura do projeto](#estrutura-do-projeto)
 - [Decisões técnicas](#decisões-técnicas)
+- [Evolução do projeto](#evolução-do-projeto)
 - [Testes e CI](#testes-e-ci)
 - [Produção](#produção)
 - [Próximos passos](#próximos-passos)
@@ -230,6 +234,33 @@ sequenceDiagram
 
 Pagamentos em `BRL` não consultam a API externa (cotação 1).
 
+### Mudança de status e evento
+
+```mermaid
+sequenceDiagram
+    participant C as Cliente
+    participant A as API
+    participant P as PostgreSQL
+    participant R as OutboxRelay
+    participant Q as RabbitMQ
+
+    C->>A: PATCH /api/payments/{id}/status
+    rect rgb(235, 245, 255)
+    Note over A,P: uma única transação
+    A->>P: valida a transição e grava o novo status (@Version)
+    A->>P: grava o evento em outbox_event
+    end
+    A-->>C: 200 com o pagamento atualizado
+    loop a cada 1s
+        R->>P: lê pendentes (FOR UPDATE SKIP LOCKED)
+        R->>Q: publica PagamentoStatusAlterado
+        Q-->>R: confirmação (ack)
+        R->>P: marca published_at
+    end
+```
+
+Se o RabbitMQ estiver fora do ar, a API continua respondendo normalmente: o evento fica pendente no banco e é publicado quando o broker voltar.
+
 ## Estrutura do projeto
 
 ### Diagrama de componentes
@@ -345,11 +376,35 @@ Especificações detalhadas em [`specs/`](specs/README.md).
 | Transactional outbox + RabbitMQ | Status e evento são gravados na mesma transação; um relay publica com confirmação. Evita evento perdido ou fantasma (dual write). Consumidores deduplicam por `eventId` |
 | Transação curta sem HTTP | A chamada de câmbio fica fora da transação para não segurar conexão do banco |
 
+## Evolução do projeto
+
+O projeto partiu de uma API funcional em um único commit e foi profissionalizado em etapas, cada uma com seu commit e seus testes.
+
+| Etapa | Entrega |
+|---|---|
+| Docker | Compose com PostgreSQL, MongoDB e a aplicação; Dockerfile multi-stage; configuração sem credenciais fixas |
+| Flyway | Migrações versionadas e `ddl-auto: validate` |
+| Cliente de câmbio | `RestClient` tipado com timeout, `BigDecimal` e falha explícita (`503`) no lugar de `null` silencioso |
+| Cache | Cotação em cache Caffeine com expiração de 10 min |
+| Resiliência | Retry e circuit breaker (Resilience4j) |
+| Idempotência | `Idempotency-Key` no `POST /api/payments`, com índice único e proteção contra corrida |
+| Status | Transições válidas e lock otimista (`@Version`) |
+| Testes | Unitários, WireMock e integração com PostgreSQL e MongoDB reais (Testcontainers) |
+| Segurança | JWT (HS256) protegendo `/api/payments/**` |
+| Actuator e CI | Health com probes e GitHub Actions executando `./mvnw verify` |
+| Métricas | Prometheus: negócio, circuit breaker, retry, JVM e HTTP |
+| ArchUnit | Regras de arquitetura executadas no build |
+| Mensageria | `PagamentoStatusAlterado` no RabbitMQ via transactional outbox |
+
+Cada etapa está detalhada em [`specs/roadmap.md`](specs/roadmap.md).
+
 ## Testes e CI
 
 ```bash
 ./mvnw verify    # exige Docker (Testcontainers)
 ```
+
+São 46 testes. Todos rodam no `./mvnw verify`.
 
 | Camada | Cobertura |
 |---|---|
