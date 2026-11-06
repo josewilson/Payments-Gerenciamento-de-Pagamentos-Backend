@@ -1,44 +1,40 @@
 package com.josewilson.payments.client;
 
-
+import com.josewilson.payments.exception.CotacaoIndisponivelException;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
-import java.util.Map;
+import java.math.BigDecimal;
 
 @Component
 public class ExchangeRateClient {
 
-    private final RestTemplate restTemplate;
+    private final RestClient restClient;
 
-    public ExchangeRateClient(RestTemplate restTemplate) {
-        this.restTemplate = restTemplate;
+    public ExchangeRateClient(RestClient exchangeRateRestClient) {
+        this.restClient = exchangeRateRestClient;
     }
 
-    public Double getBrlExchangeRate(String currency) {
-        try {
-            if ("BRL".equalsIgnoreCase(currency)) {
-                return 1.0;
-            }
-
-            String url = "https://api.exchangerate.host/latest?base=" + currency + "&symbols=BRL";
-
-            Map response = restTemplate.getForObject(url, Map.class);
-
-            if (response == null || response.get("rates") == null) {
-                return null;
-            }
-
-            Map rates = (Map) response.get("rates");
-            Object brlValue = rates.get("BRL");
-
-            if (brlValue instanceof Number number) {
-                return number.doubleValue();
-            }
-
-            return null;
-        } catch (Exception ex) {
-            return null;
+    public BigDecimal getBrlExchangeRate(String currency) {
+        if ("BRL".equalsIgnoreCase(currency)) {
+            return BigDecimal.ONE;
         }
+
+        ExchangeRateResponse response;
+        try {
+            response = restClient.get()
+                    .uri("/latest/{base}", currency.toUpperCase())
+                    .retrieve()
+                    .body(ExchangeRateResponse.class);
+        } catch (RestClientException ex) {
+            throw new CotacaoIndisponivelException("Falha ao consultar cotação de " + currency, ex);
+        }
+
+        BigDecimal rate = response == null || response.rates() == null ? null : response.rates().get("BRL");
+        if (rate == null) {
+            throw new CotacaoIndisponivelException("Cotação BRL ausente na resposta para " + currency);
+        }
+        return rate;
     }
 }

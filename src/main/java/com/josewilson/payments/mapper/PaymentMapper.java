@@ -5,6 +5,8 @@ import com.josewilson.payments.domain.Payment;
 import com.josewilson.payments.dto.PaymentResponseDTO;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
+
 @Component
 public class PaymentMapper {
 
@@ -12,7 +14,7 @@ public class PaymentMapper {
         return toResponseDTO(payment, null);
     }
 
-    public PaymentResponseDTO toResponseDTO(Payment payment, Double exchangeRateToBrl) {
+    public PaymentResponseDTO toResponseDTO(Payment payment, BigDecimal exchangeRateToBrl) {
         PaymentResponseDTO response = new PaymentResponseDTO();
         response.setId(payment.getId());
         response.setCustomerName(payment.getCustomerName());

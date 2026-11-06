@@ -15,6 +15,7 @@
 	<description>API de pagamentos com auditoria e cotacao</description>
 	<properties>
 		<java.version>21</java.version>
+		<argLine></argLine>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -86,6 +87,12 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.wiremock</groupId>
+            <artifactId>wiremock-standalone</artifactId>
+            <version>3.13.1</version>
             <scope>test</scope>
         </dependency>
 	</dependencies>

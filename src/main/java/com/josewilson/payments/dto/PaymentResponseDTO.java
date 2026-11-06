@@ -17,7 +17,7 @@ public class PaymentResponseDTO {
     private String externalReference;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-    private Double exchangeRateToBrl;
+    private BigDecimal exchangeRateToBrl;
 
     public Long getId() {
         return id;
@@ -91,11 +91,11 @@ public class PaymentResponseDTO {
         this.updatedAt = updatedAt;
     }
 
-    public Double getExchangeRateToBrl() {
+    public BigDecimal getExchangeRateToBrl() {
         return exchangeRateToBrl;
     }
 
-    public void setExchangeRateToBrl(Double exchangeRateToBrl) {
+    public void setExchangeRateToBrl(BigDecimal exchangeRateToBrl) {
         this.exchangeRateToBrl = exchangeRateToBrl;
     }
 }

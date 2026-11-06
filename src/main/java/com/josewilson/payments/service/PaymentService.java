@@ -16,6 +16,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -57,7 +58,7 @@ public class PaymentService {
 
         saveAudit(savedPayment.getId(), "CREATED", "Pagamento criado com status PENDING.");
 
-        Double exchangeRate = exchangeRateClient.getBrlExchangeRate(savedPayment.getCurrency());
+        BigDecimal exchangeRate = exchangeRateClient.getBrlExchangeRate(savedPayment.getCurrency());
 
         return paymentMapper.toResponseDTO(savedPayment, exchangeRate);
     }
@@ -72,7 +73,7 @@ public class PaymentService {
         }
 
         return paymentsPage.map(payment -> {
-            Double exchangeRate = exchangeRateClient.getBrlExchangeRate(payment.getCurrency());
+            BigDecimal exchangeRate = exchangeRateClient.getBrlExchangeRate(payment.getCurrency());
             return paymentMapper.toResponseDTO(payment, exchangeRate);
         });
     }
@@ -81,7 +82,7 @@ public class PaymentService {
         Payment payment = paymentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Pagamento não encontrado com o id: " + id));
 
-        Double exchangeRate = exchangeRateClient.getBrlExchangeRate(payment.getCurrency());
+        BigDecimal exchangeRate = exchangeRateClient.getBrlExchangeRate(payment.getCurrency());
 
         return paymentMapper.toResponseDTO(payment, exchangeRate);
     }
@@ -101,7 +102,7 @@ public class PaymentService {
                 "Status alterado para " + updatedPayment.getStatus()
         );
 
-        Double exchangeRate = exchangeRateClient.getBrlExchangeRate(updatedPayment.getCurrency());
+        BigDecimal exchangeRate = exchangeRateClient.getBrlExchangeRate(updatedPayment.getCurrency());
 
         return paymentMapper.toResponseDTO(updatedPayment, exchangeRate);
     }

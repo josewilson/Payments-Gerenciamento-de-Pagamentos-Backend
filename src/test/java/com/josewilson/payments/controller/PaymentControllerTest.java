@@ -1,7 +1,7 @@
 package com.josewilson.payments.controller;
 
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.josewilson.payments.domain.PaymentStatus;
 import com.josewilson.payments.dto.PaymentRequestDTO;
 import com.josewilson.payments.dto.PaymentResponseDTO;
@@ -51,7 +51,7 @@ class PaymentControllerTest {
         response.setCurrency("BRL");
         response.setStatus(PaymentStatus.PENDING);
         response.setExternalReference("PEDIDO-123");
-        response.setExchangeRateToBrl(1.0);
+        response.setExchangeRateToBrl(BigDecimal.ONE);
 
         when(paymentService.createPayment(any(PaymentRequestDTO.class))).thenReturn(response);
 

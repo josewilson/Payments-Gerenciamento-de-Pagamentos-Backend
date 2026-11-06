@@ -74,14 +74,14 @@ class PaymentServiceTest {
         paymentResponseDTO.setCurrency("BRL");
         paymentResponseDTO.setStatus(PaymentStatus.PENDING);
         paymentResponseDTO.setExternalReference("PEDIDO-123");
-        paymentResponseDTO.setExchangeRateToBrl(1.0);
+        paymentResponseDTO.setExchangeRateToBrl(BigDecimal.ONE);
     }
 
     @Test
     void shouldCreatePaymentSuccessfully() {
         when(paymentRepository.save(ArgumentMatchers.any(Payment.class))).thenReturn(payment);
-        when(exchangeRateClient.getBrlExchangeRate("BRL")).thenReturn(1.0);
-        when(paymentMapper.toResponseDTO(payment, 1.0)).thenReturn(paymentResponseDTO);
+        when(exchangeRateClient.getBrlExchangeRate("BRL")).thenReturn(BigDecimal.ONE);
+        when(paymentMapper.toResponseDTO(payment, BigDecimal.ONE)).thenReturn(paymentResponseDTO);
 
         PaymentResponseDTO result = paymentService.createPayment(paymentRequestDTO);
 
@@ -89,11 +89,11 @@ class PaymentServiceTest {
         assertEquals(1L, result.getId());
         assertEquals("Francisco Almeida", result.getCustomerName());
         assertEquals(PaymentStatus.PENDING, result.getStatus());
-        assertEquals(1.0, result.getExchangeRateToBrl());
+        assertEquals(BigDecimal.ONE, result.getExchangeRateToBrl());
 
         verify(paymentRepository, times(1)).save(any(Payment.class));
         verify(paymentAuditRepository, times(1)).save(any());
         verify(exchangeRateClient, times(1)).getBrlExchangeRate("BRL");
-        verify(paymentMapper, times(1)).toResponseDTO(payment, 1.0);
+        verify(paymentMapper, times(1)).toResponseDTO(payment, BigDecimal.ONE);
     }
 }

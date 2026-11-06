@@ -27,3 +27,7 @@ server:
   port: 8080
   shutdown: graceful
 
+exchange-rate:
+  base-url: ${EXCHANGE_RATE_URL:https://open.er-api.com/v6}
+  connect-timeout: 2s
+  read-timeout: 3s
