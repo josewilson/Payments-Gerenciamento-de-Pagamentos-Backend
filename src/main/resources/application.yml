@@ -16,6 +16,11 @@ spring:
     baseline-on-migrate: true
     baseline-version: 0
 
+  cache:
+    cache-names: cotacoes
+    caffeine:
+      spec: expireAfterWrite=10m,maximumSize=200
+
   data:
     mongodb:
       uri: ${MONGO_URI:mongodb://localhost:27017/payments_audit_db}

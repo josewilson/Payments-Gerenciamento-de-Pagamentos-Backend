@@ -1,6 +1,7 @@
 package com.josewilson.payments.client;
 
 import com.josewilson.payments.exception.CotacaoIndisponivelException;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -16,6 +17,7 @@ public class ExchangeRateClient {
         this.restClient = exchangeRateRestClient;
     }
 
+    @Cacheable("cotacoes")
     public BigDecimal getBrlExchangeRate(String currency) {
         if ("BRL".equalsIgnoreCase(currency)) {
             return BigDecimal.ONE;
