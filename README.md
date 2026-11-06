@@ -31,7 +31,7 @@
 - [Autenticação](#autenticação)
 - [API](#api)
 - [Regras de negócio](#regras-de-negócio)
-- [Arquitetura](#arquitetura)
+- [Estrutura do projeto](#estrutura-do-projeto)
 - [Decisões técnicas](#decisões-técnicas)
 - [Testes e CI](#testes-e-ci)
 - [Produção](#produção)
@@ -205,26 +205,86 @@ sequenceDiagram
 
 Pagamentos em `BRL` não consultam a API externa (cotação 1).
 
-## Arquitetura
+## Estrutura do projeto
 
-```text
-controller → service → repository ─┬─ PostgreSQL (pagamentos, Flyway)
-                 │                 └─ MongoDB    (auditoria)
-                 └────→ client ──── API de câmbio
-                        cache → retry → circuit breaker → RestClient
+### Diagrama de componentes
+
+```mermaid
+flowchart LR
+    Client([Cliente]) -->|HTTP + JWT| Sec[SecurityConfig<br/>valida o token]
+    Sec --> Ctrl[PaymentController]
+    Ctrl --> Svc[PaymentService]
+    Svc --> Map[PaymentMapper]
+    Svc --> PRepo[PaymentRepository]
+    Svc --> ARepo[PaymentAuditRepository]
+    Svc --> FX[ExchangeRateClient<br/>cache → retry → circuit breaker]
+    PRepo --> PG[(PostgreSQL<br/>Flyway)]
+    ARepo --> MG[(MongoDB<br/>auditoria)]
+    FX --> API([API de câmbio])
+    Ctrl -.erros.-> EH[GlobalExceptionHandler]
 ```
 
+### Modelo de dados
+
+```mermaid
+erDiagram
+    PAYMENTS {
+        bigint id PK
+        varchar customer_name
+        varchar customer_email
+        numeric amount "12,2"
+        varchar currency
+        varchar status "PENDING | APPROVED | REJECTED | CANCELLED"
+        varchar idempotency_key UK
+        varchar external_reference
+        bigint version "lock otimista"
+        timestamp created_at
+        timestamp updated_at
+    }
+    PAYMENT_AUDIT {
+        string id PK "MongoDB"
+        bigint paymentId "referencia payments.id"
+        string action "CREATED | STATUS_UPDATED"
+        string details
+        datetime timestamp
+    }
+    PAYMENTS ||--o{ PAYMENT_AUDIT : "gera"
+```
+
+### Árvore de diretórios
+
 ```text
-src/main/java/com/josewilson/payments
-├── controller   endpoints REST
-├── service      regras de negócio
-├── repository   acesso a dados (JPA e Mongo)
-├── domain       entidades e enums
-├── dto          contratos de entrada e saída
-├── mapper       entidade ↔ DTO
-├── client       integração com a API de câmbio
-├── config       segurança, cache, OpenAPI, HTTP client
-└── exception    exceções de domínio e handler global
+.
+├── .github/workflows/ci.yml        # CI: ./mvnw verify
+├── specs/                          # especificações e roadmap
+├── src/
+│   ├── main/
+│   │   ├── java/com/josewilson/payments/
+│   │   │   ├── PaymentsApplication.java
+│   │   │   ├── controller/         # PaymentController
+│   │   │   ├── service/            # PaymentService (regras de negócio)
+│   │   │   ├── repository/         # PaymentRepository (JPA), PaymentAuditRepository (Mongo)
+│   │   │   ├── domain/             # Payment, PaymentAudit, PaymentStatus
+│   │   │   ├── dto/                # PaymentRequestDTO, PaymentResponseDTO, PaymentStatusUpdateDTO
+│   │   │   ├── mapper/             # PaymentMapper
+│   │   │   ├── client/             # ExchangeRateClient, ExchangeRateResponse
+│   │   │   ├── config/             # Security, Jwt, Cache, RestClient, OpenApi, Web
+│   │   │   └── exception/          # exceções de domínio e GlobalExceptionHandler
+│   │   └── resources/
+│   │       ├── application.yml
+│   │       └── db/migration/       # V1__payment, V2__idempotency_key, V3__payment_version
+│   └── test/java/com/josewilson/payments/
+│       ├── client/                 # ExchangeRateClientTest (WireMock)
+│       ├── config/                 # CotacaoCacheTest, CotacaoResilienceTest
+│       ├── controller/             # PaymentControllerTest (MockMvc)
+│       ├── domain/                 # PaymentStatusTest
+│       ├── service/                # PaymentServiceTest, PaymentStatusFlowTest
+│       └── integration/            # PaymentIntegrationTest (Testcontainers)
+├── Dockerfile                      # imagem multi-stage, usuário não-root
+├── docker-compose.yml              # postgres + mongo + app
+├── .env.example                    # modelo das variáveis de ambiente
+├── CLAUDE.md                       # guia para agentes de código
+└── pom.xml
 ```
 
 Especificações detalhadas em [`specs/`](specs/README.md).
