@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/josewilson/Payments-Gerenciamento-de-Pagementos-Backend-/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/josewilson/Payments-Gerenciamento-de-Pagementos-Backend-/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/josewilson/Payments-Gerenciamento-de-Pagamentos-Backend/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/josewilson/Payments-Gerenciamento-de-Pagamentos-Backend/actions/workflows/ci.yml/badge.svg"></a>
 </p>
 
 <p align="center">
