@@ -27,3 +27,11 @@ Swagger: `http://localhost:8080/swagger-ui/index.html` · Health: `/actuator/hea
 - Chamadas externas: cliente tipado, com timeout, e falha vira exceção de domínio (nunca `null` silencioso).
 - Commits em português, Conventional Commits (`feat(escopo): ...`), um passo do roadmap por commit.
 - Mudou comportamento? Atualize a spec correspondente em `specs/`.
+
+## Armadilhas do Spring Boot 4 (já encontradas aqui)
+
+- URI do Mongo é `spring.mongodb.uri` (a antiga `spring.data.mongodb.uri` é ignorada).
+- Jackson 3: `tools.jackson.databind.ObjectMapper` (anotações continuam em `com.fasterxml.jackson.annotation`).
+- Slice `@WebMvcTest` com segurança: `@Import(SecurityConfig.class)` + `@MockitoBean JwtDecoder` + `jwt()` nas requisições.
+- Testes de integração se chamam `*Test` (surefire não executa `*IT`) e exigem Docker.
+- `ExchangeRateClient` fica sob cache → retry → circuit breaker; o atalho BRL fica no `PaymentService`, fora do circuito.
