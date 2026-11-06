@@ -8,6 +8,8 @@ import com.josewilson.payments.dto.PaymentResponseDTO;
 import com.josewilson.payments.dto.PaymentStatusUpdateDTO;
 import com.josewilson.payments.service.PaymentService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
@@ -26,8 +28,11 @@ public class PaymentController {
 
     @PostMapping
     @ResponseStatus(org.springframework.http.HttpStatus.CREATED)
-    public PaymentResponseDTO createPayment(@Valid @RequestBody PaymentRequestDTO request) {
-        return paymentService.createPayment(request);
+    public PaymentResponseDTO createPayment(
+            @RequestHeader("Idempotency-Key") @NotBlank @Size(max = 100) String idempotencyKey,
+            @Valid @RequestBody PaymentRequestDTO request
+    ) {
+        return paymentService.createPayment(idempotencyKey, request);
     }
 
     @GetMapping

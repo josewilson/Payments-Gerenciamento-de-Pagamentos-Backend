@@ -83,7 +83,7 @@ class PaymentServiceTest {
         when(exchangeRateClient.getBrlExchangeRate("BRL")).thenReturn(BigDecimal.ONE);
         when(paymentMapper.toResponseDTO(payment, BigDecimal.ONE)).thenReturn(paymentResponseDTO);
 
-        PaymentResponseDTO result = paymentService.createPayment(paymentRequestDTO);
+        PaymentResponseDTO result = paymentService.createPayment("key-1", paymentRequestDTO);
 
         assertNotNull(result);
         assertEquals(1L, result.getId());
@@ -95,5 +95,34 @@ class PaymentServiceTest {
         verify(paymentAuditRepository, times(1)).save(any());
         verify(exchangeRateClient, times(1)).getBrlExchangeRate("BRL");
         verify(paymentMapper, times(1)).toResponseDTO(payment, BigDecimal.ONE);
+    }
+
+    @Test
+    void sameIdempotencyKeyReturnsExistingPaymentWithoutCreatingAnother() {
+        when(paymentRepository.findByIdempotencyKey("key-1")).thenReturn(java.util.Optional.of(payment));
+        when(exchangeRateClient.getBrlExchangeRate("BRL")).thenReturn(BigDecimal.ONE);
+        when(paymentMapper.toResponseDTO(payment, BigDecimal.ONE)).thenReturn(paymentResponseDTO);
+
+        PaymentResponseDTO result = paymentService.createPayment("key-1", paymentRequestDTO);
+
+        assertEquals(1L, result.getId());
+        verify(paymentRepository, never()).save(any(Payment.class));
+        verify(paymentAuditRepository, never()).save(any());
+    }
+
+    @Test
+    void concurrentDuplicateKeyReturnsWinnerPayment() {
+        when(paymentRepository.findByIdempotencyKey("key-1"))
+                .thenReturn(java.util.Optional.empty())
+                .thenReturn(java.util.Optional.of(payment));
+        when(paymentRepository.save(any(Payment.class)))
+                .thenThrow(new org.springframework.dao.DataIntegrityViolationException("uq_payments_idempotency_key"));
+        when(exchangeRateClient.getBrlExchangeRate("BRL")).thenReturn(BigDecimal.ONE);
+        when(paymentMapper.toResponseDTO(payment, BigDecimal.ONE)).thenReturn(paymentResponseDTO);
+
+        PaymentResponseDTO result = paymentService.createPayment("key-1", paymentRequestDTO);
+
+        assertEquals(1L, result.getId());
+        verify(paymentAuditRepository, never()).save(any());
     }
 }

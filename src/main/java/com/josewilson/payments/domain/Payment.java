@@ -40,6 +40,9 @@ public class Payment {
     @Column(nullable = false, length = 20)
     private PaymentStatus status;
 
+    @Column(name = "idempotency_key", length = 100, unique = true)
+    private String idempotencyKey;
+
     @Column(name = "external_reference", length = 100)
     private String externalReference;
 

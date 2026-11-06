@@ -7,7 +7,7 @@ Um passo = um commit. Marque `[x]` ao concluir.
 - [x] 3. Cliente de câmbio tipado — `refactor(cambio): cliente tipado com timeout`
 - [x] 4. Cache da cotação — `feat(cache): cache de cotacao com expiracao`
 - [x] 5. Resiliência — `feat(resiliencia): retry e circuit breaker`
-- [ ] 6. Idempotência do POST — `feat(api): idempotencia na criacao de pagamento`
+- [x] 6. Idempotência do POST — `feat(api): idempotencia na criacao de pagamento`
 - [ ] 7. Transições de status + lock otimista — `feat(dominio): transicoes de status validas`
 - [ ] 8. Testes (serviço + IT com Testcontainers) — `test: servico e integracao com bancos reais`
 - [ ] 9. Autenticação JWT — `feat(seguranca): API protegida por JWT`

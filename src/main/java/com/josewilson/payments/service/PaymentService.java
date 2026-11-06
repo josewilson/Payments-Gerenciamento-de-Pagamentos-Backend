@@ -12,6 +12,7 @@ import com.josewilson.payments.exception.ResourceNotFoundException;
 import com.josewilson.payments.mapper.PaymentMapper;
 import com.josewilson.payments.repository.PaymentAuditRepository;
 import com.josewilson.payments.repository.PaymentRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -40,7 +41,12 @@ public class PaymentService {
         this.exchangeRateClient = exchangeRateClient;
     }
 
-    public PaymentResponseDTO createPayment(PaymentRequestDTO request) {
+    public PaymentResponseDTO createPayment(String idempotencyKey, PaymentRequestDTO request) {
+        Payment existing = paymentRepository.findByIdempotencyKey(idempotencyKey).orElse(null);
+        if (existing != null) {
+            return toResponse(existing);
+        }
+
         LocalDateTime now = LocalDateTime.now();
 
         Payment payment = Payment.builder()
@@ -49,18 +55,29 @@ public class PaymentService {
                 .amount(request.getAmount())
                 .currency(request.getCurrency().toUpperCase())
                 .status(PaymentStatus.PENDING)
+                .idempotencyKey(idempotencyKey)
                 .externalReference(request.getExternalReference())
                 .createdAt(now)
                 .updatedAt(now)
                 .build();
 
-        Payment savedPayment = paymentRepository.save(payment);
+        Payment savedPayment;
+        try {
+            savedPayment = paymentRepository.save(payment);
+        } catch (DataIntegrityViolationException ex) {
+            // corrida: outra requisicao com a mesma chave gravou primeiro (indice unico)
+            return paymentRepository.findByIdempotencyKey(idempotencyKey)
+                    .map(this::toResponse)
+                    .orElseThrow(() -> ex);
+        }
 
         saveAudit(savedPayment.getId(), "CREATED", "Pagamento criado com status PENDING.");
 
-        BigDecimal exchangeRate = exchangeRateClient.getBrlExchangeRate(savedPayment.getCurrency());
+        return toResponse(savedPayment);
+    }
 
-        return paymentMapper.toResponseDTO(savedPayment, exchangeRate);
+    private PaymentResponseDTO toResponse(Payment payment) {
+        return paymentMapper.toResponseDTO(payment, exchangeRateClient.getBrlExchangeRate(payment.getCurrency()));
     }
 
     public Page<PaymentResponseDTO> findPayments(PaymentStatus status, Pageable pageable) {

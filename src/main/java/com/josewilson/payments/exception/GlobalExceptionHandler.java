@@ -6,6 +6,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingRequestHeaderException;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -33,6 +35,11 @@ public class GlobalExceptionHandler {
         Map<String, Object> body = body(HttpStatus.BAD_REQUEST, "Dados inválidos.");
         body.put("validationErrors", errors);
         return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler({MissingRequestHeaderException.class, HandlerMethodValidationException.class})
+    public ResponseEntity<Map<String, Object>> handleBadHeader(Exception ex) {
+        return build(HttpStatus.BAD_REQUEST, "Header Idempotency-Key é obrigatório (1 a 100 caracteres).");
     }
 
     @ExceptionHandler(CotacaoIndisponivelException.class)
