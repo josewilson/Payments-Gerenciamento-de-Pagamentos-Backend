@@ -10,7 +10,11 @@ spring:
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
+
+  flyway:
+    baseline-on-migrate: true
+    baseline-version: 0
 
   data:
     mongodb:
@@ -22,3 +26,4 @@ spring:
 server:
   port: 8080
   shutdown: graceful
+

@@ -3,7 +3,7 @@
 Um passo = um commit. Marque `[x]` ao concluir.
 
 - [x] 1. Docker Compose — `chore(docker): ambiente completo com postgres e mongo`
-- [ ] 2. Flyway — `feat(db): migracoes com Flyway`
+- [x] 2. Flyway — `feat(db): migracoes com Flyway`
 - [ ] 3. Cliente de câmbio tipado — `refactor(cambio): cliente tipado com timeout`
 - [ ] 4. Cache da cotação — `feat(cache): cache de cotacao com expiracao`
 - [ ] 5. Resiliência — `feat(resiliencia): retry e circuit breaker`
