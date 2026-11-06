@@ -59,3 +59,13 @@ resilience4j:
         wait-duration-in-open-state: 30s
         record-exceptions:
           - com.josewilson.payments.exception.CotacaoIndisponivelException
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true

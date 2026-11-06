@@ -1,7 +1,6 @@
 package com.josewilson.payments.config;
 
 
-import io.swagger.v3.oas.models.ExternalDocumentation;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.info.Info;
@@ -22,9 +21,6 @@ public class OpenApiConfig {
                 .info(new Info()
                         .title("Payments API")
                         .description("API para gerenciamento de pagamentos com auditoria e cotação")
-                        .version("1.0.0"))
-                .externalDocs(new ExternalDocumentation()
-                        .description("Documentação do projeto")
-                        .url("https://example.com/docs"));
+                        .version("1.0.0"));
     }
 }

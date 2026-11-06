@@ -11,6 +11,6 @@ Um passo = um commit. Marque `[x]` ao concluir.
 - [x] 7. Transições de status + lock otimista — `feat(dominio): transicoes de status validas`
 - [x] 8. Testes (serviço + IT com Testcontainers) — `test: servico e integracao com bancos reais`
 - [x] 9. Autenticação JWT — `feat(seguranca): API protegida por JWT`
-- [ ] 10. Actuator + CI — `ci: build e testes`
+- [x] 10. Actuator + CI — `ci: build e testes`
 
 Fora de escopo: publicar `PagamentoStatusAlterado` em fila (só quando Pix e pedido tiverem mensageria).
