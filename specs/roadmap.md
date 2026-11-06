@@ -13,9 +13,10 @@ Um passo = um commit. Marque `[x]` ao concluir.
 - [x] 9. Autenticação JWT — `feat(seguranca): API protegida por JWT`
 - [x] 10. Actuator + CI — `ci: build e testes`
 
-Fora de escopo: publicar `PagamentoStatusAlterado` em fila (só quando Pix e pedido tiverem mensageria).
+
 
 ## Complementos
 
 - [x] Métricas Prometheus (negócio + resiliência)
 - [x] ArchUnit (regras de arquitetura) — commit `feat(observabilidade): metricas prometheus e regras ArchUnit`
+- [x] Mensageria: `PagamentoStatusAlterado` no RabbitMQ com outbox — `feat(mensageria): evento de status alterado com outbox`

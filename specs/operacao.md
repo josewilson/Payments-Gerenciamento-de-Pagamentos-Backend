@@ -8,6 +8,7 @@ Tudo por variável de ambiente (ver `.env.example`). Sem segredos no repositóri
 
 - PostgreSQL 16 com Flyway (`db/migration`), `ddl-auto: validate`, `open-in-view: false`.
 - MongoDB 7 para auditoria.
+- RabbitMQ 3.13 para eventos (ver `mensageria.md`); `RABBITMQ_USER`/`RABBITMQ_PASSWORD` sem default.
 
 ## Segurança
 

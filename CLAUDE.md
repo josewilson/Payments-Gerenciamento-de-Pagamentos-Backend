@@ -37,3 +37,4 @@ Swagger: `http://localhost:8080/swagger-ui/index.html` · Health: `/actuator/hea
 - `ExchangeRateClient` fica sob cache → retry → circuit breaker; o atalho BRL fica no `PaymentService`, fora do circuito.
 - Métricas: `/actuator/prometheus` exige JWT. Não nomeie contador terminando em `.created` (sufixo reservado do Prometheus: o contador some). Binders do Resilience4j são registrados à mão em `MetricsConfig`.
 - Regras de arquitetura em `ArchitectureTest`: camada nova ou dependência fora do padrão quebra o build.
+- Mensageria: mudança de status grava `outbox_event` na mesma transação (`TransactionTemplate` no `PaymentService`, sem HTTP dentro dela); `OutboxRelay` publica no RabbitMQ. Consumidores devem deduplicar por `eventId`. Detalhes em `specs/mensageria.md`.

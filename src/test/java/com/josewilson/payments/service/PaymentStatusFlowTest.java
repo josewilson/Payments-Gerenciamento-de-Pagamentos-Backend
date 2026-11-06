@@ -8,6 +8,8 @@ import com.josewilson.payments.dto.PaymentStatusUpdateDTO;
 import com.josewilson.payments.exception.InvalidStatusTransitionException;
 import com.josewilson.payments.exception.ResourceNotFoundException;
 import com.josewilson.payments.mapper.PaymentMapper;
+import com.josewilson.payments.domain.OutboxEvent;
+import com.josewilson.payments.repository.OutboxEventRepository;
 import com.josewilson.payments.repository.PaymentAuditRepository;
 import com.josewilson.payments.repository.PaymentRepository;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -19,6 +21,9 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -37,13 +42,17 @@ class PaymentStatusFlowTest {
     PaymentAuditRepository paymentAuditRepository;
     @Mock
     ExchangeRateClient exchangeRateClient;
+    @Mock
+    OutboxEventRepository outboxEventRepository;
 
     SimpleMeterRegistry registry = new SimpleMeterRegistry();
     PaymentService service;
 
     @BeforeEach
     void setUp() {
-        service = new PaymentService(paymentRepository, paymentAuditRepository, new PaymentMapper(), exchangeRateClient, registry);
+        service = new PaymentService(paymentRepository, paymentAuditRepository, new PaymentMapper(), exchangeRateClient,
+                registry, outboxEventRepository, JsonMapper.builder().build(),
+                new TransactionTemplate(mock(PlatformTransactionManager.class)));
     }
 
     private Payment payment(PaymentStatus status) {
@@ -73,6 +82,14 @@ class PaymentStatusFlowTest {
         assertEquals("STATUS_UPDATED", audit.getValue().getAction());
         assertTrue(audit.getValue().getDetails().contains(target.name()));
         assertEquals(1.0, registry.counter("payments.status.changed", "status", target.name()).count());
+
+        ArgumentCaptor<OutboxEvent> outbox = ArgumentCaptor.forClass(OutboxEvent.class);
+        verify(outboxEventRepository).save(outbox.capture());
+        assertEquals("PagamentoStatusAlterado", outbox.getValue().getType());
+        assertEquals(1L, outbox.getValue().getAggregateId());
+        assertTrue(outbox.getValue().getPayload().contains("\"previousStatus\":\"PENDING\""));
+        assertTrue(outbox.getValue().getPayload().contains("\"newStatus\":\"" + target.name() + "\""));
+        assertNull(outbox.getValue().getPublishedAt());
     }
 
     @ParameterizedTest
@@ -84,7 +101,7 @@ class PaymentStatusFlowTest {
                 () -> service.updatePaymentStatus(1L, update(PaymentStatus.CANCELLED)));
 
         verify(paymentRepository, never()).save(any());
-        verifyNoInteractions(paymentAuditRepository);
+        verifyNoInteractions(paymentAuditRepository, outboxEventRepository);
     }
 
     @Test

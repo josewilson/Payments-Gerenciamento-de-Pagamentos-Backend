@@ -14,7 +14,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentMatchers;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import com.josewilson.payments.repository.OutboxEventRepository;
 import org.mockito.InjectMocks;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+import tools.jackson.databind.json.JsonMapper;
 import org.mockito.Spy;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -42,6 +46,15 @@ class PaymentServiceTest {
 
     @Spy
     private SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
+
+    @Mock
+    private OutboxEventRepository outboxEventRepository;
+
+    @Spy
+    private JsonMapper jsonMapper = JsonMapper.builder().build();
+
+    @Spy
+    private TransactionTemplate transactionTemplate = new TransactionTemplate(mock(PlatformTransactionManager.class));
 
     @InjectMocks
     private PaymentService paymentService;

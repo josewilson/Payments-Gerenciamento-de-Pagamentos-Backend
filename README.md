@@ -30,6 +30,7 @@
 - [Configuração](#configuração)
 - [Autenticação](#autenticação)
 - [API](#api)
+- [Eventos](#eventos)
 - [Regras de negócio](#regras-de-negócio)
 - [Estrutura do projeto](#estrutura-do-projeto)
 - [Decisões técnicas](#decisões-técnicas)
@@ -50,6 +51,7 @@ Gerencia o ciclo de vida de pagamentos: criação, consulta paginada com filtro 
 | **Segurança** | JWT (HS256) em `/api/payments/**`, sem segredos no repositório |
 | **Operação** | Docker Compose, health com probes, shutdown gracioso e CI |
 | **Observabilidade** | Métricas Prometheus (negócio, circuit breaker, retry, JVM e HTTP) |
+| **Mensageria** | Evento `PagamentoStatusAlterado` no RabbitMQ via transactional outbox (at-least-once) |
 
 ## Início rápido
 
@@ -66,8 +68,9 @@ docker compose up -d --build
 | Swagger UI | http://localhost:8080/swagger-ui/index.html |
 | Health | http://localhost:8080/actuator/health |
 | Métricas (exige JWT) | http://localhost:8080/actuator/prometheus |
+| RabbitMQ (painel) | http://localhost:15672 |
 
-Para rodar pela IDE ou com `./mvnw spring-boot:run`, suba apenas os bancos (`docker compose up -d postgres mongo`) e exporte as variáveis do `.env`.
+Para rodar pela IDE ou com `./mvnw spring-boot:run`, suba apenas a infraestrutura (`docker compose up -d postgres mongo rabbitmq`) e exporte as variáveis do `.env`.
 
 ## Configuração
 
@@ -80,6 +83,8 @@ Toda configuração sensível vem de variáveis de ambiente (modelo em [`.env.ex
 | `MONGO_URI` | não | `mongodb://localhost:27017/payments_audit_db` | Conexão com o MongoDB |
 | `JWT_SECRET` | sim | — | Chave HS256, mínimo 32 bytes (`openssl rand -base64 48`) |
 | `EXCHANGE_RATE_URL` | não | `https://open.er-api.com/v6` | API de cotação |
+| `RABBITMQ_USER`, `RABBITMQ_PASSWORD` | sim | — | Credenciais do RabbitMQ |
+| `RABBITMQ_HOST`, `RABBITMQ_PORT` | não | `localhost`, `5672` | Conexão com o RabbitMQ |
 | `MONGO_USER`, `MONGO_PASSWORD` | só no Compose | — | Credenciais do contêiner MongoDB |
 
 ## Autenticação
@@ -166,6 +171,24 @@ Formato único: `{ "timestamp", "status", "error", "message" }`, com `validation
 | `503` | Cotação indisponível. Repita com a mesma `Idempotency-Key` |
 | `500` | Erro interno (a mensagem da exceção não é exposta) |
 
+## Eventos
+
+Cada mudança de status publica `PagamentoStatusAlterado` no exchange `payments.events` (routing key `payment.status.changed`, fila durável `payments.status-changed`):
+
+```json
+{
+  "eventId": "6f1c0a52-...",
+  "paymentId": 1,
+  "previousStatus": "PENDING",
+  "newStatus": "APPROVED",
+  "amount": 199.90,
+  "currency": "USD",
+  "occurredAt": "2026-11-06T19:45:00.123Z"
+}
+```
+
+Entrega **at-least-once**: deduplique pelo `eventId`. Detalhes em [`specs/mensageria.md`](specs/mensageria.md).
+
 ## Regras de negócio
 
 ### Status
@@ -223,6 +246,10 @@ flowchart LR
     PRepo --> PG[(PostgreSQL<br/>Flyway)]
     ARepo --> MG[(MongoDB<br/>auditoria)]
     FX --> API([API de câmbio])
+    Svc --> OBox[OutboxEventRepository]
+    OBox --> PG
+    Relay[OutboxRelay<br/>a cada 1s] --> OBox
+    Relay -->|publica com confirmação| MQ{{RabbitMQ<br/>payments.events}}
     Ctrl -.erros.-> EH[GlobalExceptionHandler]
 ```
 
@@ -250,7 +277,16 @@ erDiagram
         string details
         datetime timestamp
     }
+    OUTBOX_EVENT {
+        uuid id PK "eventId"
+        bigint aggregate_id "payments.id"
+        varchar type "PagamentoStatusAlterado"
+        text payload "JSON"
+        timestamp created_at
+        timestamp published_at "null = pendente"
+    }
     PAYMENTS ||--o{ PAYMENT_AUDIT : "gera"
+    PAYMENTS ||--o{ OUTBOX_EVENT : "origina"
 ```
 
 ### Árvore de diretórios
@@ -265,22 +301,24 @@ erDiagram
 │   │   │   ├── PaymentsApplication.java
 │   │   │   ├── controller/         # PaymentController
 │   │   │   ├── service/            # PaymentService (regras de negócio)
-│   │   │   ├── repository/         # PaymentRepository (JPA), PaymentAuditRepository (Mongo)
-│   │   │   ├── domain/             # Payment, PaymentAudit, PaymentStatus
+│   │   │   ├── repository/         # PaymentRepository, OutboxEventRepository (JPA), PaymentAuditRepository (Mongo)
+│   │   │   ├── domain/             # Payment, PaymentAudit, PaymentStatus, OutboxEvent, PaymentStatusChangedEvent
 │   │   │   ├── dto/                # PaymentRequestDTO, PaymentResponseDTO, PaymentStatusUpdateDTO
 │   │   │   ├── mapper/             # PaymentMapper
 │   │   │   ├── client/             # ExchangeRateClient, ExchangeRateResponse
+│   │   │   ├── messaging/          # OutboxRelay, MessagingConfig (RabbitMQ)
 │   │   │   ├── config/             # Security, Jwt, Cache, Metrics, RestClient, OpenApi, Web
 │   │   │   └── exception/          # exceções de domínio e GlobalExceptionHandler
 │   │   └── resources/
 │   │       ├── application.yml
-│   │       └── db/migration/       # V1__payment, V2__idempotency_key, V3__payment_version
+│   │       └── db/migration/       # V1 a V4 (payment, idempotency_key, version, outbox_event)
 │   └── test/java/com/josewilson/payments/
 │       ├── architecture/           # ArchitectureTest (ArchUnit)
 │       ├── client/                 # ExchangeRateClientTest (WireMock)
 │       ├── config/                 # CotacaoCacheTest, CotacaoResilienceTest
 │       ├── controller/             # PaymentControllerTest (MockMvc)
 │       ├── domain/                 # PaymentStatusTest
+│       ├── messaging/              # OutboxRelayTest
 │       ├── service/                # PaymentServiceTest, PaymentStatusFlowTest
 │       └── integration/            # PaymentIntegrationTest (Testcontainers)
 ├── Dockerfile                      # imagem multi-stage, usuário não-root
@@ -304,6 +342,8 @@ Especificações detalhadas em [`specs/`](specs/README.md).
 | Flyway com `ddl-auto: validate` | O schema só muda por migração versionada |
 | Falha de câmbio vira `503` | Erro explícito em vez de `null` silencioso |
 | Auditoria no MongoDB | Trilha separada dos dados transacionais |
+| Transactional outbox + RabbitMQ | Status e evento são gravados na mesma transação; um relay publica com confirmação. Evita evento perdido ou fantasma (dual write). Consumidores deduplicam por `eventId` |
+| Transação curta sem HTTP | A chamada de câmbio fica fora da transação para não segurar conexão do banco |
 
 ## Testes e CI
 
@@ -316,7 +356,8 @@ Especificações detalhadas em [`specs/`](specs/README.md).
 | Unitários | Serviço (criação, idempotência, transições de status, auditoria) e regra de transição |
 | Cliente de câmbio | WireMock: sucesso, 5xx, resposta sem BRL, timeout, cache, retry e circuit breaker |
 | Controller | MockMvc com segurança (401 sem token, validação do header) |
-| Integração | Spring Boot completo com PostgreSQL e MongoDB reais (Testcontainers) |
+| Integração | Spring Boot completo com PostgreSQL, MongoDB e RabbitMQ reais (Testcontainers), incluindo o evento chegando na fila |
+| Mensageria | Relay do outbox: publica e marca; falha do broker mantém o evento pendente |
 | Arquitetura | ArchUnit: camadas, independência do domínio, sem ciclos, injeção por construtor |
 
 O workflow [`ci.yml`](.github/workflows/ci.yml) executa `./mvnw verify` a cada push e pull request.
@@ -326,14 +367,15 @@ O workflow [`ci.yml`](.github/workflows/ci.yml) executa `./mvnw verify` a cada p
 Checklist de implantação:
 
 - [ ] `DB_PASSWORD`, `MONGO_PASSWORD` e `JWT_SECRET` fortes, vindos de um gerenciador de segredos (nunca do repositório)
-- [ ] Bancos gerenciados ou com backup; volumes persistentes
+- [ ] Bancos e RabbitMQ gerenciados ou com backup; volumes persistentes
+- [ ] Consumidores do evento deduplicando por `eventId`
 - [ ] HTTPS terminado em um proxy ou balanceador à frente da API
 - [ ] Probes do orquestrador em `/actuator/health/liveness` e `/actuator/health/readiness`
 - [ ] Imagem Docker publicada a partir do `Dockerfile` (multi-stage, usuário não-root)
 
 ## Próximos passos
 
-- Publicar `PagamentoStatusAlterado` em fila (quando houver mensageria no ecossistema)
+- Limpeza periódica do `outbox_event` e fila de mensagens mortas
 - Tracing distribuído (OpenTelemetry) e logs estruturados
 
 ## Autor

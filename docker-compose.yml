@@ -31,6 +31,23 @@ services:
       retries: 10
       start_period: 20s
 
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    volumes:
+      - rabbitdata:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 15s
+      retries: 10
+      start_period: 30s
+
   app:
     build: .
     depends_on:
@@ -38,12 +55,17 @@ services:
         condition: service_healthy
       mongo:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     environment:
       DB_HOST: postgres
       DB_NAME: ${DB_NAME:-paymentsdb}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       MONGO_URI: mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongo:27017/payments_audit_db?authSource=admin
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
     ports:
       - "8080:8080"
@@ -52,3 +74,4 @@ services:
 volumes:
   pgdata:
   mongodata:
+  rabbitdata:

@@ -23,15 +23,17 @@ class ArchitectureTest {
             .layer("Service").definedBy("..service..")
             .layer("Repository").definedBy("..repository..")
             .layer("Client").definedBy("..client..")
+            .layer("Messaging").definedBy("..messaging..")
             .whereLayer("Controller").mayNotBeAccessedByAnyLayer()
             .whereLayer("Service").mayOnlyBeAccessedByLayers("Controller")
-            .whereLayer("Repository").mayOnlyBeAccessedByLayers("Service")
+            .whereLayer("Messaging").mayNotBeAccessedByAnyLayer()
+            .whereLayer("Repository").mayOnlyBeAccessedByLayers("Service", "Messaging")
             .whereLayer("Client").mayOnlyBeAccessedByLayers("Service");
 
     @ArchTest
     static final ArchRule domainIsIndependent = noClasses().that().resideInAPackage("..domain..")
             .should().dependOnClassesThat().resideInAnyPackage(
-                    "..controller..", "..service..", "..repository..", "..client..", "..dto..", "..mapper..");
+                    "..controller..", "..service..", "..repository..", "..client..", "..dto..", "..mapper..", "..messaging..");
 
     @ArchTest
     static final ArchRule noPackageCycles = slices().matching("com.josewilson.payments.(*)..")

@@ -25,6 +25,10 @@ import java.util.Date;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.mongodb.MongoDBContainer;
+import org.testcontainers.rabbitmq.RabbitMQContainer;
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import com.josewilson.payments.messaging.MessagingConfig;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
@@ -48,6 +52,8 @@ class PaymentIntegrationTest {
     static PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:16");
     @Container
     static MongoDBContainer mongo = new MongoDBContainer("mongo:7");
+    @Container
+    static RabbitMQContainer rabbit = new RabbitMQContainer("rabbitmq:3.13-management");
 
     @RegisterExtension
     static WireMockExtension fx = WireMockExtension.newInstance()
@@ -61,12 +67,19 @@ class PaymentIntegrationTest {
         r.add("spring.datasource.password", postgres::getPassword);
         r.add("spring.mongodb.uri", () -> mongo.getReplicaSetUrl("payments_audit_test"));
         r.add("exchange-rate.base-url", fx::baseUrl);
+        r.add("spring.rabbitmq.host", rabbit::getHost);
+        r.add("spring.rabbitmq.port", rabbit::getAmqpPort);
+        r.add("spring.rabbitmq.username", rabbit::getAdminUsername);
+        r.add("spring.rabbitmq.password", rabbit::getAdminPassword);
+        r.add("outbox.poll-interval", () -> "200ms");
         r.add("resilience4j.retry.instances.exchangeRate.wait-duration", () -> "10ms");
         r.add("resilience4j.circuitbreaker.instances.exchangeRate.minimum-number-of-calls", () -> "100");
     }
 
     @Autowired
     MockMvc mvc;
+    @Autowired
+    RabbitTemplate rabbitTemplate;
 
     private ResultActions perform(MockHttpServletRequestBuilder request) throws Exception {
         return mvc.perform(request.header("Authorization", "Bearer " + token(SECRET)));
@@ -180,5 +193,31 @@ class PaymentIntegrationTest {
         org.junit.jupiter.api.Assertions.assertTrue(body.contains("payments_creations_total"), body);
         org.junit.jupiter.api.Assertions.assertTrue(body.contains("application=\"payments\""), body);
         org.junit.jupiter.api.Assertions.assertTrue(body.contains("resilience4j_circuitbreaker_state"), body);
+    }
+
+    @Test
+    void statusChangePublishesEventThroughOutbox() throws Exception {
+        Integer id = JsonPath.read(create("it-event-1", "BRL").getResponse().getContentAsString(), "$.id");
+
+        perform(patch("/api/payments/{id}/status", id).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"REJECTED\"}")).andExpect(status().isOk());
+
+        // a fila é compartilhada com outros testes: consome até achar o evento deste pagamento
+        Message found = null;
+        long deadline = System.currentTimeMillis() + 20_000;
+        while (found == null && System.currentTimeMillis() < deadline) {
+            Message m = rabbitTemplate.receive(MessagingConfig.QUEUE, 2_000);
+            if (m != null && new String(m.getBody()).contains("\"paymentId\":" + id + ",")) {
+                found = m;
+            }
+        }
+
+        org.junit.jupiter.api.Assertions.assertNotNull(found, "evento não chegou na fila");
+        String json = new String(found.getBody());
+        org.junit.jupiter.api.Assertions.assertTrue(json.contains("\"previousStatus\":\"PENDING\""), json);
+        org.junit.jupiter.api.Assertions.assertTrue(json.contains("\"newStatus\":\"REJECTED\""), json);
+        assertEquals("PagamentoStatusAlterado", found.getMessageProperties().getType());
+        assertEquals("application/json", found.getMessageProperties().getContentType());
+        org.junit.jupiter.api.Assertions.assertNotNull(found.getMessageProperties().getMessageId());
     }
 }

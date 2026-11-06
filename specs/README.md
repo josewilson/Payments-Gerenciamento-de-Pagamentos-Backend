@@ -7,6 +7,7 @@ Especificações do projeto. Cada arquivo descreve **o que** o sistema faz e **p
 | [roadmap.md](roadmap.md) | Passos de profissionalização, ordem e status |
 | [pagamentos.md](pagamentos.md) | Regras de negócio: criação, idempotência, transições de status |
 | [cambio.md](cambio.md) | Integração de cotação: timeout, cache, resiliência, erros |
+| [mensageria.md](mensageria.md) | Evento `PagamentoStatusAlterado`, outbox e RabbitMQ |
 | [operacao.md](operacao.md) | Configuração, segurança, banco, observabilidade, CI |
 
 Regra: mudou o comportamento, muda a spec no mesmo commit.

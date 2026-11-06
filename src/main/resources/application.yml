@@ -24,6 +24,13 @@ spring:
   mongodb:
     uri: ${MONGO_URI:mongodb://localhost:27017/payments_audit_db}
 
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER}
+    password: ${RABBITMQ_PASSWORD}
+    publisher-confirm-type: simple
+
   data:
     web:
       pageable:
