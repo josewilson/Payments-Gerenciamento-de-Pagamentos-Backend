@@ -23,8 +23,6 @@
 
 ---
 
-API REST de pagamentos em Java 21 e Spring Boot 4: PostgreSQL para os dados, MongoDB para auditoria, cotação de câmbio via API externa, autenticação JWT e documentação OpenAPI.
-
 ## Destaques
 
 - **Idempotência** no `POST /api/payments` (header `Idempotency-Key`, índice único no banco, seguro contra corrida).
